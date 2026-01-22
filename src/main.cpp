@@ -5,6 +5,7 @@
 #include <cmath>
 #include <iostream>
 #include <iomanip>
+#include <algorithm>
 
 // ----------------------------
 // ADJUSTABLE PARAMETERS
@@ -19,21 +20,24 @@ const int NUM_FRAMES = 200;
 
 // Time step size
 // Too large -> instability
-const double dt = 0.02;
+const double dt = 0.0005;
+
+const double dx = 1.0 / (N - 1);
+const double inv_dx2 = 1.0 / (dx * dx);
 
 // Wave speed factor (acts like gravity in shallow-water sense)
 // Larger -> faster waves
-const double wave_speed = 1.0;
+const double wave_speed = 3.0;
 
 // Simple damping coefficient
 // 0.0 = waves never die
 // ~0.01–0.05 = realistic settling
-const double damping = 0.02;
+const double damping = 0.05;
 
 // Disturbance parameters
 const double disturb_x = 0.5; // location in [0,1]
 const double disturb_y = 0.5;
-const double disturb_amp = 0.1;    // wave height
+const double disturb_amp = 0.02;    // wave height
 const double disturb_sigma = 0.08; // width of bump
 
 // Output directory
@@ -47,12 +51,24 @@ int main()
   std::vector<std::vector<double>> h(N, std::vector<double>(N, 0.0));
   std::vector<std::vector<double>> h_new(N, std::vector<double>(N, 0.0));
 
+  //Momentum
+  std::vector<std::vector<double>> h_prev(N, std::vector<double>(N, 0.0));
+
   // Initialize flat water surface
   for (int i = 0; i < N; ++i)
     for (int j = 0; j < N; ++j)
       h[i][j] = 0.5; // base water height
 
+
   // Apply a one-time Gaussian disturbance
+  for (int i = 0; i < N; ++i)
+    for (int j = 0; j < N; ++j)
+      h[i][j] = 0.5;
+
+  // -------------------------------------------------
+  // 2. Initial VELOCITY impulse (drop-style)
+  //    (THIS REPLACES the Gaussian height bump)
+  // -------------------------------------------------
   for (int i = 0; i < N; ++i)
   {
     for (int j = 0; j < N; ++j)
@@ -64,7 +80,12 @@ int main()
       double dy = y - disturb_y;
       double r2 = dx * dx + dy * dy;
 
-      h[i][j] += disturb_amp * std::exp(-r2 / (2.0 * disturb_sigma * disturb_sigma));
+      double impulse =
+          disturb_amp * std::exp(-r2 / (2.0 * disturb_sigma * disturb_sigma));
+
+      // h_prev encodes initial velocity
+      h_prev[i][j] = 0.5 + impulse;
+      h[i][j] = 0.5;
     }
   }
 
@@ -80,12 +101,18 @@ int main()
 
         // Laplacian (measures curvature)
         double lap =
-            h[i + 1][j] + h[i - 1][j] +
-            h[i][j + 1] + h[i][j - 1] -
-            4.0 * h[i][j];
+            (h[i + 1][j] + h[i - 1][j] +
+             h[i][j + 1] + h[i][j - 1] -
+             4.0 * h[i][j]) *
+            inv_dx2;
 
         // Update rule
-        h_new[i][j] = h[i][j] + wave_speed * lap * dt - damping * (h[i][j] - 0.5);
+        double c2 = wave_speed * wave_speed;
+
+        h_new[i][j] =
+            2.0 * h[i][j] - h_prev[i][j]          // inertia (momentum)
+            + c2 * lap * dt * dt                  // wave propagation
+            - damping * (h[i][j] - h_prev[i][j]); // velocity damping
       }
     }
 
@@ -99,7 +126,25 @@ int main()
     }
 
     // Swap buffers
+    h_prev.swap(h);
     h.swap(h_new);
+
+
+    // --- DEBUG: min/max height each frame ---
+    double mn = h[0][0], mx = h[0][0];
+    for (int a = 0; a < N; ++a)
+    {
+      for (int b = 0; b < N; ++b)
+      {
+        mn = std::min(mn, h[a][b]);
+        mx = std::max(mx, h[a][b]);
+      }
+    }
+    std::cout << std::fixed << std::setprecision(6)
+              << "frame " << frame
+              << "  min=" << mn
+              << "  max=" << mx << "\n";
+
 
     // ----------------------------
     // WRITE CSV FRAME

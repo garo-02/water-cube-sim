@@ -36,7 +36,7 @@ ax = fig.add_subplot(projection="3d")
 
 ax.set_xlim(0, 1)
 ax.set_ylim(0, 1)
-ax.set_zlim(0.3, 0.7)
+ax.set_zlim(0.45, 0.6)
 
 ax.set_xlabel("X")
 ax.set_ylabel("Y")
