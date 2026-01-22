@@ -15,7 +15,7 @@
 const int N = 64;
 
 // Number of time steps / frames
-const int NUM_FRAMES = 200;
+const int NUM_FRAMES = 500;
 
 // Time step size (MUST be small for stability)
 const double dt = 0.001;
@@ -29,7 +29,7 @@ const double wave_speed = 1.0;
 
 // Damping (controls under/over damping)
 // ~1–4 = underdamped
-const double damping = 2.0;
+const double damping = 0.5;
 
 // Disturbance parameters
 const double disturb_x = 0.5;
@@ -99,8 +99,12 @@ int main()
              4.0 * h[i][j]) *
             inv_dx2;
 
-        // Velocity update (damped wave equation)
-        v[i][j] += (wave_speed * wave_speed * lap - damping * v[i][j]) * dt;
+        // Velocity update with RESTORING FORCE (gravity)
+        const double h0 = 0.5; // equilibrium surface height
+        const double g = 20.0; // restoring strength (tune 10–50)
+
+        // acceleration = curvature + gravity - damping
+        v[i][j] += (wave_speed * wave_speed * lap - g * (h[i][j] - h0) - damping * v[i][j]) * dt;
 
         // Height update
         h_new[i][j] = h[i][j] + v[i][j] * dt;
