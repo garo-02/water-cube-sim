@@ -25,16 +25,16 @@ const double dx = 1.0 / (N - 1);
 const double inv_dx2 = 1.0 / (dx * dx);
 
 // Wave speed
-const double wave_speed = 1.0;
+const double wave_speed = 3.0;
 
 // Damping (controls under/over damping)
 // ~1–4 = underdamped
-const double damping = 0.5;
+const double damping = 2.0;
 
 // Disturbance parameters
 const double disturb_x = 0.5;
 const double disturb_y = 0.5;
-const double disturb_amp = 0.02;
+const double disturb_amp = 10;
 const double disturb_sigma = 0.08;
 
 // Output directory
