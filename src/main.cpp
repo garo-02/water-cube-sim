@@ -34,7 +34,7 @@ const double damping = 2.0;
 // Disturbance parameters
 const double disturb_x = 0.5;
 const double disturb_y = 0.5;
-const double disturb_amp = 10;
+const double disturb_amp = 10;  //Adjust this for more visible amplitude changes in CSV frame video compilation
 const double disturb_sigma = 0.08;
 
 // Output directory
