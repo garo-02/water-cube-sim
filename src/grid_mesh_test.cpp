@@ -1,9 +1,15 @@
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
+#include <vector>
 #include <iostream>
 
 // --------------------
-// Shader sources
+// Grid resolution
+// --------------------
+const int N = 64; // same N as your simulation
+
+// --------------------
+// Shaders
 // --------------------
 const char *vertexShaderSrc = R"(
 #version 330 core
@@ -19,7 +25,7 @@ const char *fragmentShaderSrc = R"(
 out vec4 FragColor;
 void main()
 {
-    FragColor = vec4(0.2, 0.7, 0.9, 1.0);
+    FragColor = vec4(0.1, 0.6, 0.9, 1.0);
 }
 )";
 
@@ -39,7 +45,7 @@ int main()
   glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
   GLFWwindow *window =
-      glfwCreateWindow(800, 600, "Triangle Test", nullptr, nullptr);
+      glfwCreateWindow(800, 800, "Grid Mesh Test", nullptr, nullptr);
 
   if (!window)
   {
@@ -58,7 +64,8 @@ int main()
     return -1;
   }
 
-  // Set viewport
+  glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+
   int w, h;
   glfwGetFramebufferSize(window, &w, &h);
   glViewport(0, 0, w, h);
@@ -83,45 +90,94 @@ int main()
   glDeleteShader(fShader);
 
   // --------------------
-  // Triangle data
+  // Build grid vertices
   // --------------------
-  float vertices[] = {
-      -0.5f, -0.5f, 0.0f,
-      0.5f, -0.5f, 0.0f,
-      0.0f, 0.5f, 0.0f};
+  std::vector<float> vertices;
+  vertices.reserve(N * N * 3);
 
-  GLuint VAO, VBO;
+  for (int i = 0; i < N; ++i)
+  {
+    for (int j = 0; j < N; ++j)
+    {
+      float x = -1.0f + 2.0f * j / (N - 1);
+      float y = -1.0f + 2.0f * i / (N - 1);
+      float z = 0.0f; // flat for now
+
+      vertices.push_back(x);
+      vertices.push_back(y);
+      vertices.push_back(z);
+    }
+  }
+
+  // --------------------
+  // Build triangle indices
+  // --------------------
+  std::vector<unsigned int> indices;
+  indices.reserve((N - 1) * (N - 1) * 6);
+
+  for (int i = 0; i < N - 1; ++i)
+  {
+    for (int j = 0; j < N - 1; ++j)
+    {
+      int idx = i * N + j;
+
+      // Triangle 1
+      indices.push_back(idx);
+      indices.push_back(idx + N);
+      indices.push_back(idx + 1);
+
+      // Triangle 2
+      indices.push_back(idx + 1);
+      indices.push_back(idx + N);
+      indices.push_back(idx + N + 1);
+    }
+  }
+
+  // --------------------
+  // Upload to GPU
+  // --------------------
+  GLuint VAO, VBO, EBO;
   glGenVertexArrays(1, &VAO);
   glGenBuffers(1, &VBO);
+  glGenBuffers(1, &EBO);
 
   glBindVertexArray(VAO);
+
   glBindBuffer(GL_ARRAY_BUFFER, VBO);
-  glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+  glBufferData(
+      GL_ARRAY_BUFFER,
+      vertices.size() * sizeof(float),
+      vertices.data(),
+      GL_STATIC_DRAW);
+
+  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
+  glBufferData(
+      GL_ELEMENT_ARRAY_BUFFER,
+      indices.size() * sizeof(unsigned int),
+      indices.data(),
+      GL_STATIC_DRAW);
 
   glVertexAttribPointer(
-      0, // layout location
-      3, // vec3
-      GL_FLOAT,
-      GL_FALSE,
-      3 * sizeof(float),
-      (void *)0);
+      0, 3, GL_FLOAT, GL_FALSE,
+      3 * sizeof(float), (void *)0);
   glEnableVertexAttribArray(0);
 
   // --------------------
-  // RENDER LOOP
+  // Render loop
   // --------------------
   while (!glfwWindowShouldClose(window))
   {
-    // Clear screen
-    glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
+    glClearColor(0.0f, 0.0f, 0.0f, 1.0f); // black background
     glClear(GL_COLOR_BUFFER_BIT);
 
-    // Draw triangle
     glUseProgram(shaderProgram);
     glBindVertexArray(VAO);
-    glDrawArrays(GL_TRIANGLES, 0, 3);
+    glDrawElements(
+        GL_TRIANGLES,
+        static_cast<GLsizei>(indices.size()),
+        GL_UNSIGNED_INT,
+        0);
 
-    // Swap buffers + poll input
     glfwSwapBuffers(window);
     glfwPollEvents();
   }
