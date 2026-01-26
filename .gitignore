@@ -1,0 +1,11 @@
+# Build artifacts
+*.exe
+*.obj
+*.pdb
+*.ilk
+
+# MSVC intermediate files
+*.log
+
+# Optional: output data
+output/
