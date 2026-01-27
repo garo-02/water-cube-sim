@@ -12,13 +12,19 @@ const int N = 64; // same N as your simulation
 // Shaders
 // --------------------
 const char *vertexShaderSrc = R"(
-#version 330 core
-layout (location = 0) in vec3 aPos;
-void main()
-{
-    gl_Position = vec4(aPos, 1.0);
-}
-)";
+  #version 330 core
+  layout (location = 0) in vec3 aPos;
+  
+  void main()
+  {
+      // strong fake perspective tilt
+      float x = aPos.x;
+      float y = aPos.y * 0.6 + aPos.z * 1.2;
+      float z = aPos.z;
+  
+      gl_Position = vec4(x, y, z, 1.0);
+  }
+  )";
 
 const char *fragmentShaderSrc = R"(
 #version 330 core
@@ -155,21 +161,47 @@ int main()
       GL_ELEMENT_ARRAY_BUFFER,
       indices.size() * sizeof(unsigned int),
       indices.data(),
-      GL_STATIC_DRAW);
+      GL_DYNAMIC_DRAW);
 
   glVertexAttribPointer(
       0, 3, GL_FLOAT, GL_FALSE,
       3 * sizeof(float), (void *)0);
   glEnableVertexAttribArray(0);
 
+  float t = 0.0f;
+
   // --------------------
   // Render loop
   // --------------------
   while (!glfwWindowShouldClose(window))
   {
-    glClearColor(0.0f, 0.0f, 0.0f, 1.0f); // black background
+    glClearColor(0.05f, 0.05f, 0.08f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT);
 
+    // --- UPDATE HEIGHTS ---
+    t += 0.03f;
+
+    for (int i = 0; i < N; ++i)
+    {
+      for (int j = 0; j < N; ++j)
+      {
+        int idx = (i * N + j) * 3;
+
+        float x = vertices[idx + 0];
+        float y = vertices[idx + 1];
+
+        vertices[idx + 2] = 0.1f * sinf(...);
+      }
+    }
+
+    glBindBuffer(GL_ARRAY_BUFFER, VBO);
+    glBufferSubData(
+        GL_ARRAY_BUFFER,
+        0,
+        vertices.size() * sizeof(float),
+        vertices.data());
+
+    // --- DRAW ---
     glUseProgram(shaderProgram);
     glBindVertexArray(VAO);
     glDrawElements(
