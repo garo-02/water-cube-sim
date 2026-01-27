@@ -15,14 +15,11 @@ const char *vertexShaderSrc = R"(
   #version 330 core
   layout (location = 0) in vec3 aPos;
   
+  uniform mat4 MVP;
+  
   void main()
   {
-      // strong fake perspective tilt
-      float x = aPos.x;
-      float y = aPos.y * 0.6 + aPos.z * 1.2;
-      float z = aPos.z;
-  
-      gl_Position = vec4(x, y, z, 1.0);
+      gl_Position = MVP * vec4(aPos, 1.0);
   }
   )";
 
@@ -91,6 +88,8 @@ int main()
   glAttachShader(shaderProgram, vShader);
   glAttachShader(shaderProgram, fShader);
   glLinkProgram(shaderProgram);
+  glUseProgram(shaderProgram);
+  int mvpLoc = glGetUniformLocation(shaderProgram, "MVP");
 
   glDeleteShader(vShader);
   glDeleteShader(fShader);
@@ -154,21 +153,33 @@ int main()
       GL_ARRAY_BUFFER,
       vertices.size() * sizeof(float),
       vertices.data(),
-      GL_STATIC_DRAW);
+      GL_DYNAMIC_DRAW);
 
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
   glBufferData(
       GL_ELEMENT_ARRAY_BUFFER,
       indices.size() * sizeof(unsigned int),
       indices.data(),
-      GL_DYNAMIC_DRAW);
+      GL_STATIC_DRAW);
 
   glVertexAttribPointer(
       0, 3, GL_FLOAT, GL_FALSE,
       3 * sizeof(float), (void *)0);
   glEnableVertexAttribArray(0);
 
-  float t = 0.0f;
+  float t = 0.00f;
+
+  // Simple tilted view matrix (column-major)
+  // Orthographic projection + slight tilt (column-major)
+  float MVP[16] = {
+      // column 0
+      1.0f, 0.0f, 0.0f, 0.0f,
+      // column 1
+      0.0f, 0.7f, -0.3f, 0.0f,
+      // column 2
+      0.0f, 0.3f, 0.7f, 0.0f,
+      // column 3
+      0.0f, 0.0f, 0.0f, 1.0f};
 
   // --------------------
   // Render loop
@@ -190,7 +201,7 @@ int main()
         float x = vertices[idx + 0];
         float y = vertices[idx + 1];
 
-        vertices[idx + 2] = 0.1f * sinf(...);
+        vertices[idx + 2] = 0.05f * sinf(5.0f * (x + y) + t);   // Change amplitude
       }
     }
 
@@ -202,7 +213,8 @@ int main()
         vertices.data());
 
     // --- DRAW ---
-    glUseProgram(shaderProgram);
+    glLinkProgram(shaderProgram);
+    glUniformMatrix4fv(mvpLoc, 1, GL_FALSE, MVP);
     glBindVertexArray(VAO);
     glDrawElements(
         GL_TRIANGLES,
